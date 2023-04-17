@@ -2,3 +2,8 @@
 .pytest_cache/
 __pycache__/
 .DS_Store
+
+*.db
+.coverage
+.DS_Store
+*.bak
