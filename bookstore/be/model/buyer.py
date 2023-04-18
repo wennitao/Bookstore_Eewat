@@ -1,5 +1,6 @@
 # import sqlite3 as sqlite
 from typing import Tuple, List
+from datetime import datetime
 import uuid
 import json
 import logging
@@ -38,6 +39,7 @@ class Buyer():
             uid = "{}_{}_{}".format(user_id, store_id, str(uuid.uuid1()))
             order_id = uid
             
+            total_price = 0
             for book_id, count in id_and_count:
                 # cursor = self.conn.execute(
                 #     "SELECT book_id, stock_level, book_info FROM store "
@@ -52,6 +54,7 @@ class Buyer():
                 book_info = row[0]['book_info']
                 book_info_json = json.loads(book_info)
                 price = book_info_json.get("price")
+                total_price += count * price
 
                 if stock_level < count:
                     return error.error_stock_level_low(book_id) + (order_id,)
@@ -78,7 +81,8 @@ class Buyer():
             #     "VALUES(?, ?, ?);",
             #     (order_id, store_id, user_id))
             # self.conn.commit()
-            result = self.neworderCollection.insert_one({"order_id": order_id, "store_id": store_id, "user_id": user_id, "paid": 0, "cancelled": 0})
+            curTime = datetime.now()
+            result = self.neworderCollection.insert_one({"order_id": order_id, "store_id": store_id, "user_id": user_id, "order_time": curTime, "total_price": total_price, "paid": 0, "cancelled": 0})
         
         except pymongo.errors.PyMongoError as e:
             logging.info("528, {}".format(str(e)))
@@ -94,13 +98,14 @@ class Buyer():
         try:
             # cursor = conn.execute("SELECT order_id, user_id, store_id FROM new_order WHERE order_id = ?", (order_id,))
             # row = cursor.fetchone()
-            row = list(self.neworderCollection.find({"order_id": order_id}, {"_id": 0, "order_id": 1, "user_id" : 1, "store_id": 1, "paid": 1, "cancelled": 1}))
+            row = list(self.neworderCollection.find({"order_id": order_id}, {"_id": 0, "order_id": 1, "user_id" : 1, "store_id": 1, "total_price": 1, "paid": 1, "cancelled": 1}))
             if len(row) == 0:
                 return error.error_invalid_order_id(order_id)
             
             order_id = row[0]['order_id']
             buyer_id = row[0]['user_id']
             store_id = row[0]['store_id']
+            total_price = row[0]['total_price']
 
             if buyer_id != user_id:
                 return error.error_authorization_fail()
@@ -135,12 +140,12 @@ class Buyer():
                 return error.error_non_exist_user_id(seller_id)
 
             # cursor = conn.execute("SELECT book_id, count, price FROM new_order_detail WHERE order_id = ?;", (order_id,))
-            cursor = self.neworderdetailCollection.find({"order_id": order_id}, {"_id": 0, "book_id": 1, "count": 1, "price": 1})
-            total_price = 0
-            for row in cursor:
-                count = row['count']
-                price = row['price']
-                total_price = total_price + price * count
+            # cursor = self.neworderdetailCollection.find({"order_id": order_id}, {"_id": 0, "book_id": 1, "count": 1, "price": 1})
+            # total_price = 0
+            # for row in cursor:
+            #     count = row['count']
+            #     price = row['price']
+            #     total_price = total_price + price * count
 
             if balance < total_price:
                 return error.error_not_sufficient_funds(order_id)
@@ -152,8 +157,8 @@ class Buyer():
                 {"user_id": buyer_id, "balance": {"$gte": total_price}},
                 {"$inc": {"balance": -total_price}}
             )
-            if result.matched_count == 0:
-                return error.error_not_sufficient_funds(order_id)
+            # if result.matched_count == 0:
+            #     return error.error_not_sufficient_funds(order_id)
 
             # cursor = conn.execute("UPDATE user set balance = balance + ?"
             #                       "WHERE user_id = ?",
@@ -162,8 +167,8 @@ class Buyer():
                 {"user_id": seller_id},
                 {"$inc": {"balance": total_price}}
             )
-            if result.matched_count == 0:
-                return error.error_non_exist_user_id(seller_id)
+            # if result.matched_count == 0:
+            #     return error.error_non_exist_user_id(seller_id)
 
             # cursor = conn.execute("DELETE FROM new_order WHERE order_id = ?", (order_id, ))
             # result = self.neworderCollection.delete_one({"order_id": order_id})
@@ -206,8 +211,8 @@ class Buyer():
                 {"user_id": user_id},
                 {"$inc": {"balance": add_value}}
             )
-            if result.matched_count == 0:
-                return error.error_non_exist_user_id(user_id)
+            # if result.matched_count == 0:
+            #     return error.error_non_exist_user_id(user_id)
 
             # self.conn.commit()
         except pymongo.errors.PyMongoError as e:
@@ -232,9 +237,45 @@ class Buyer():
                 for cur_book_order in cursor:
                     cur_order.append (cur_book_order)
                 orders[order_id] = cur_order
-            print (orders)
-            return 200, "ok", orders
         except pymongo.errors.PyMongoError as e:
             return 528, "{}".format(str(e)), ""
         except BaseException as e:
             return 530, "{}".format(str(e)), ""
+        return 200, "ok", orders
+
+    def cancel_order (self, user_id, token, order_id) -> Tuple [int, str]:
+        try:
+            code, msg = User().check_token (user_id, token)
+            if code != 200:
+                return code, msg
+            order = list (self.neworderCollection.find ({"order_id": order_id}, {"_id": 0, "user_id": 1, "store_id": 1, "total_price": 1, "paid": 1, "cancelled": 1}))
+            if len (order) == 0:
+                return error.error_invalid_order_id(order_id)
+            order = order[0]
+            print (order)
+            if order['cancelled'] == 1:
+                return error.error_order_cancelled (order_id)
+            if order['paid'] == 1:
+                buyer_id = order['user_id']
+                store_id = order['store_id']
+                total_price = order['total_price']
+                userStore = list(self.userstoreCollection.find({"store_id": store_id}, {"_id": 0, "user_id": 1}))
+                seller_id = userStore[0]['user_id']
+                self.userCollection.update_one(
+                    {"user_id": buyer_id},
+                    {"$inc": {"balance": total_price}}
+                )
+                self.userCollection.update_one(
+                    {"user_id": seller_id},
+                    {"$inc": {"balance": -total_price}}
+                )
+            self.neworderCollection.update_one (
+                {"order_id": order_id}, 
+                {"$set": {"cancelled": 1}}
+            )
+        except pymongo.errors.PyMongoError as e:
+            return 528, "{}".format(str(e))
+        except BaseException as e:
+            print (str (e))
+            return 530, "{}".format(str(e))
+        return 200, "ok"

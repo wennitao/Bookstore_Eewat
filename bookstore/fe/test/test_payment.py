@@ -82,3 +82,12 @@ class TestPayment:
 
         code = self.buyer.payment(self.order_id)
         assert code == 520
+
+    def test_pay_after_cancel (self):
+        code = self.buyer.add_funds(self.total_price)
+        assert code == 200
+        code = self.buyer.cancel_order (self.order_id)
+        assert code == 200
+
+        code = self.buyer.payment(self.order_id)
+        assert code == 521

@@ -117,8 +117,6 @@ POST http://[address]/buyer/add_funds
 
 #### Request
 
-
-
 ##### Body:
 ```json
 {
@@ -136,6 +134,7 @@ user_id | string | 买家用户ID | N
 password | string | 用户密码 | N
 add_value | int | 充值金额，以分为单位 | N
 
+#### Response
 
 Status Code:
 
@@ -200,3 +199,42 @@ order_id | string | 订单号，只有返回200时才有效 | N
 book_id | string | 书籍ID | N
 count | integer | 购买数量 | N
 price | integer | 书籍单价 | N
+
+## 取消订单
+
+#### URL：
+POST http://[address]/buyer/cancel_order
+
+#### Request
+
+##### Header:
+
+key | 类型 | 描述 | 是否可为空
+---|---|---|---
+token | string | 登录产生的会话标识 | N
+
+##### Body:
+```json
+{
+  "user_id": "buyer_id",
+  "order_id": "order_id"
+}
+```
+
+##### 属性说明：
+
+变量名 | 类型 | 描述 | 是否可为空
+---|---|---|---
+user_id | string | 买家用户ID | N
+order_id | string | 订单ID | N
+
+#### Response 
+
+Status Code:
+
+码 | 描述
+--- | ---
+200 | 取消订单成功
+401 | 授权失败
+518 | 订单ID不存在
+521 | 订单已取消

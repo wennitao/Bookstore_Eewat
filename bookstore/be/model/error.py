@@ -53,7 +53,6 @@ def error_stock_level_low(book_id):
 def error_invalid_order_id(order_id):
     return 518, error_code[518].format(order_id)
 
-
 def error_not_sufficient_funds(order_id):
     return 519, error_code[519].format(order_id)
 
