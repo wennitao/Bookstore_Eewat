@@ -142,13 +142,13 @@ class Buyer():
 
             # cursor = conn.execute("UPDATE user set balance = balance + ?"
             #                       "WHERE user_id = ?",
-            #                       (total_price, buyer_id))
+            #                       (total_price, seller_id))
             result = self.userCollection.update_one(
-                {"user_id": buyer_id},
+                {"user_id": seller_id},
                 {"$inc": {"balance": total_price}}
             )
             if result.matched_count == 0:
-                return error.error_non_exist_user_id(buyer_id)
+                return error.error_non_exist_user_id(seller_id)
 
             # cursor = conn.execute("DELETE FROM new_order WHERE order_id = ?", (order_id, ))
             result = self.neworderCollection.delete_one({"order_id": order_id})
