@@ -1,5 +1,7 @@
 import pytest
 
+from be.model.user import getBalance
+
 from fe.access.buyer import Buyer
 from fe.test.gen_book_data import GenBook
 from fe.access.new_buyer import register_new_buyer
@@ -42,10 +44,20 @@ class TestPayment:
         yield
 
     def test_ok(self):
+        preBalance = getBalance (self.buyer_id)
         code = self.buyer.add_funds(self.total_price)
+        postBalance = getBalance (self.buyer_id)
         assert code == 200
+        assert postBalance - preBalance == self.total_price
+
+        preBalance = getBalance (self.buyer_id)
+        preSellerBalance = getBalance (self.seller_id)
         code = self.buyer.payment(self.order_id)
+        postBalance = getBalance (self.buyer_id)
+        postSellerBalance = getBalance (self.seller_id)
         assert code == 200
+        assert preBalance - postBalance == self.total_price
+        assert postSellerBalance - preSellerBalance == self.total_price
 
     def test_authorization_error(self):
         code = self.buyer.add_funds(self.total_price)

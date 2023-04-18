@@ -1,8 +1,8 @@
-import sqlite3 as sqlite
+# import sqlite3 as sqlite
 import uuid
 import json
 import logging
-from be.model import db_conn
+# from be.model import db_conn
 from be.model import error
 from be.model.collection import Collection
 from be.model.database import user_id_exist, book_id_exist, store_id_exist
@@ -65,7 +65,7 @@ class Buyer():
                 #         "INSERT INTO new_order_detail(order_id, book_id, count, price) "
                 #         "VALUES(?, ?, ?, ?);",
                 #         (uid, book_id, count, price))
-                result = self.neworderdetailCollection.insert_one({"order_id": uid, "book_id": book_id, "count": count, "price": price})
+                result = self.neworderdetailCollection.insert_one({"order_id": uid, "book_id": book_id, "count": count, "price": price, "paid": 0})
 
             # self.conn.execute(
             #     "INSERT INTO new_order(order_id, store_id, user_id) "
@@ -120,15 +120,19 @@ class Buyer():
                 return error.error_non_exist_user_id(seller_id)
 
             # cursor = conn.execute("SELECT book_id, count, price FROM new_order_detail WHERE order_id = ?;", (order_id,))
-            cursor = self.neworderdetailCollection.find({"order_id": order_id}, {"_id": 0, "book_id": 1, "count": 1, "price": 1})
+            cursor = self.neworderdetailCollection.find({"order_id": order_id}, {"_id": 0, "book_id": 1, "count": 1, "price": 1, "paid": 1})
             total_price = 0
             for row in cursor:
                 count = row['count']
                 price = row['price']
+                paid = row['paid']
                 total_price = total_price + price * count
 
             if balance < total_price:
                 return error.error_not_sufficient_funds(order_id)
+
+            if paid == 1:
+                return error.error_already_paid(order_id)
 
             # cursor = conn.execute("UPDATE user set balance = balance - ?"
             #                       "WHERE user_id = ? AND balance >= ?",
@@ -151,14 +155,19 @@ class Buyer():
                 return error.error_non_exist_user_id(seller_id)
 
             # cursor = conn.execute("DELETE FROM new_order WHERE order_id = ?", (order_id, ))
-            result = self.neworderCollection.delete_one({"order_id": order_id})
-            if result.deleted_count == 0:
-                return error.error_invalid_order_id(order_id)
+            # result = self.neworderCollection.delete_one({"order_id": order_id})
+            # if result.deleted_count == 0:
+            #     return error.error_invalid_order_id(order_id)
 
             # cursor = conn.execute("DELETE FROM new_order_detail where order_id = ?", (order_id, ))
-            result = self.neworderdetailCollection.delete_one({"order_id": order_id})
-            if result.deleted_count == 0:
-                return error.error_invalid_order_id(order_id)
+            # result = self.neworderdetailCollection.delete_one({"order_id": order_id})
+            # if result.deleted_count == 0:
+            #     return error.error_invalid_order_id(order_id)
+
+            result = self.neworderdetailCollection.update_one (
+                {"order_id": order_id},
+                {"$set": {"paid": 1}}
+            )
 
             # conn.commit()
 
