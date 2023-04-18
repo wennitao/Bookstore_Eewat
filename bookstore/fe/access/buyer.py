@@ -1,3 +1,4 @@
+from typing import Tuple, List
 import requests
 import simplejson
 from urllib.parse import urljoin
@@ -27,7 +28,7 @@ class Buyer:
         response_json = r.json()
         return r.status_code, response_json.get("order_id")
 
-    def payment(self,  order_id: str):
+    def payment(self,  order_id: str) -> int:
         json = {"user_id": self.user_id, "password": self.password, "order_id": order_id}
         url = urljoin(self.url_prefix, "payment")
         headers = {"token": self.token}
@@ -40,3 +41,10 @@ class Buyer:
         headers = {"token": self.token}
         r = requests.post(url, headers=headers, json=json)
         return r.status_code
+    
+    def query_orders (self) -> Tuple [int, dict]:
+        json = {"user_id": self.user_id, "password": self.password}
+        url = urljoin(self.url_prefix, "query_orders")
+        headers = {"token": self.token}
+        r = requests.post(url, headers=headers, json=json)
+        return r.status_code, r.json().get("orders")

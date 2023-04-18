@@ -1,8 +1,10 @@
 # import sqlite3 as sqlite
+from typing import Tuple, List
 import uuid
 import json
 import logging
 # from be.model import db_conn
+from be.model.user import User, getBalance
 from be.model import error
 from be.model.collection import Collection
 from be.model.database import user_id_exist, book_id_exist, store_id_exist
@@ -19,11 +21,11 @@ class Buyer():
         self.userstoreCollection = Collection("user_store").collection
         self.userstoreCollection.create_index([("user_id", 1), ("store_id", 1)], unique = True)
         self.neworderCollection = Collection("new_order").collection
-        self.neworderCollection.create_index([("order_id", 1)], unique = True)
+        self.neworderCollection.create_index([("order_id", 1), ("user_id", 1)], unique = True)
         self.neworderdetailCollection = Collection("new_order_detail").collection
         self.neworderdetailCollection.create_index([("order_id", 1), ("book_id", 1)], unique = True)
 
-    def new_order(self, user_id: str, store_id: str, id_and_count: [(str, int)]) -> (int, str, str):
+    def new_order(self, user_id: str, store_id: str, id_and_count: List[Tuple[str, int]]) -> Tuple[int, str, str]:
         order_id = ""
         try:
             if not user_id_exist(user_id):
@@ -31,7 +33,8 @@ class Buyer():
             if not store_id_exist(store_id):
                 return error.error_non_exist_store_id(store_id) + (order_id, )
             uid = "{}_{}_{}".format(user_id, store_id, str(uuid.uuid1()))
-
+            order_id = uid
+            
             for book_id, count in id_and_count:
                 # cursor = self.conn.execute(
                 #     "SELECT book_id, stock_level, book_info FROM store "
@@ -64,16 +67,16 @@ class Buyer():
                 # self.conn.execute(
                 #         "INSERT INTO new_order_detail(order_id, book_id, count, price) "
                 #         "VALUES(?, ?, ?, ?);",
-                #         (uid, book_id, count, price))
-                result = self.neworderdetailCollection.insert_one({"order_id": uid, "book_id": book_id, "count": count, "price": price, "paid": 0})
+                #         (order_id, book_id, count, price))
+                result = self.neworderdetailCollection.insert_one({"order_id": order_id, "book_id": book_id, "count": count, "price": price})
 
             # self.conn.execute(
             #     "INSERT INTO new_order(order_id, store_id, user_id) "
             #     "VALUES(?, ?, ?);",
-            #     (uid, store_id, user_id))
+            #     (order_id, store_id, user_id))
             # self.conn.commit()
-            result = self.neworderCollection.insert_one({"order_id": uid, "store_id": store_id, "user_id": user_id})
-            order_id = uid
+            result = self.neworderCollection.insert_one({"order_id": order_id, "store_id": store_id, "user_id": user_id, "paid": 0, "cancelled": 0})
+        
         except pymongo.errors.PyMongoError as e:
             logging.info("528, {}".format(str(e)))
             return 528, "{}".format(str(e)), ""
@@ -83,30 +86,39 @@ class Buyer():
 
         return 200, "ok", order_id
 
-    def payment(self, user_id: str, password: str, order_id: str) -> (int, str):
+    def payment(self, user_id: str, password: str, order_id: str) -> Tuple[int, str]:
         # conn = self.conn
         try:
             # cursor = conn.execute("SELECT order_id, user_id, store_id FROM new_order WHERE order_id = ?", (order_id,))
             # row = cursor.fetchone()
-            row = list(self.neworderCollection.find({"order_id": order_id}, {"_id": 0, "order_id": 1, "user_id" : 1, "store_id": 1}))
+            row = list(self.neworderCollection.find({"order_id": order_id}, {"_id": 0, "order_id": 1, "user_id" : 1, "store_id": 1, "paid": 1, "cancelled": 1}))
             if len(row) == 0:
                 return error.error_invalid_order_id(order_id)
-
+            
             order_id = row[0]['order_id']
             buyer_id = row[0]['user_id']
             store_id = row[0]['store_id']
 
             if buyer_id != user_id:
                 return error.error_authorization_fail()
+            
+            paid = row[0]['paid']
+            if paid == 1:
+                return error.error_already_paid (order_id)
+
+            cancelled = row[0]['cancelled']
+            if cancelled == 1:
+                return error.error_order_cancelled (order_id)
+            
+            code, msg = User().check_password (buyer_id, password)
+            if code != 200:
+                return code, msg
 
             # cursor = conn.execute("SELECT balance, password FROM user WHERE user_id = ?;", (buyer_id,))
             # row = cursor.fetchone()
-            row = list(self.userCollection.find({"user_id": buyer_id}, {"_id": 0, "balance": 1, "password": 1}))
-            if len(row) == 0:
-                return error.error_non_exist_user_id(buyer_id)
-            balance = row[0]['balance']
-            if password != row[0]['password']:
-                return error.error_authorization_fail()
+            
+            # balance = row[0]['balance']
+            balance = getBalance (buyer_id)
 
             # cursor = conn.execute("SELECT store_id, user_id FROM user_store WHERE store_id = ?;", (store_id,))
             # row = cursor.fetchone()
@@ -120,19 +132,15 @@ class Buyer():
                 return error.error_non_exist_user_id(seller_id)
 
             # cursor = conn.execute("SELECT book_id, count, price FROM new_order_detail WHERE order_id = ?;", (order_id,))
-            cursor = self.neworderdetailCollection.find({"order_id": order_id}, {"_id": 0, "book_id": 1, "count": 1, "price": 1, "paid": 1})
+            cursor = self.neworderdetailCollection.find({"order_id": order_id}, {"_id": 0, "book_id": 1, "count": 1, "price": 1})
             total_price = 0
             for row in cursor:
                 count = row['count']
                 price = row['price']
-                paid = row['paid']
                 total_price = total_price + price * count
 
             if balance < total_price:
                 return error.error_not_sufficient_funds(order_id)
-
-            if paid == 1:
-                return error.error_already_paid(order_id)
 
             # cursor = conn.execute("UPDATE user set balance = balance - ?"
             #                       "WHERE user_id = ? AND balance >= ?",
@@ -164,7 +172,7 @@ class Buyer():
             # if result.deleted_count == 0:
             #     return error.error_invalid_order_id(order_id)
 
-            result = self.neworderdetailCollection.update_one (
+            result = self.neworderCollection.update_one (
                 {"order_id": order_id},
                 {"$set": {"paid": 1}}
             )
@@ -175,20 +183,18 @@ class Buyer():
             return 528, "{}".format(str(e))
 
         except BaseException as e:
+            print (str (e))
             return 530, "{}".format(str(e))
 
         return 200, "ok"
 
-    def add_funds(self, user_id, password, add_value) -> (int, str):
+    def add_funds(self, user_id, password, add_value) -> Tuple[int, str]:
         try:
             # cursor = self.conn.execute("SELECT password  from user where user_id=?", (user_id,))
             # row = cursor.fetchone()
-            row = list(self.userCollection.find({"user_id": user_id}, {"_id": 0, "password": 1}))
-            if len(row) == 0:
-                return error.error_authorization_fail()
-
-            if row[0]['password'] != password:
-                return error.error_authorization_fail()
+            code, msg = User().check_password (user_id, password)
+            if code != 200:
+                return code, msg
 
             # cursor = self.conn.execute(
             #     "UPDATE user SET balance = balance + ? WHERE user_id = ?",
@@ -207,3 +213,25 @@ class Buyer():
             return 530, "{}".format(str(e))
 
         return 200, "ok"
+    
+    def query_orders (self, user_id, password) -> Tuple [int, str, dict]:
+        try:
+            code, msg = User().check_password (user_id, password)
+            if code != 200:
+                return code, msg, ""
+
+            orders = {}
+            order_list = self.neworderCollection.find ({"user_id": user_id}, {"_id": 0, "order_id": 1})
+            for row in order_list:
+                cur_order = []
+                order_id = row['order_id']
+                cursor = self.neworderdetailCollection.find ({"order_id": order_id}, {"_id": 0, "book_id": 1, "count": 1, "price": 1, "paid": 1, "cancelled": 1})
+                for cur_book_order in cursor:
+                    cur_order.append (cur_book_order)
+                orders[order_id] = cur_order
+            print (orders)
+            return 200, "ok", orders
+        except pymongo.errors.PyMongoError as e:
+            return 528, "{}".format(str(e)), ""
+        except BaseException as e:
+            return 530, "{}".format(str(e)), ""

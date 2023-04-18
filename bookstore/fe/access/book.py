@@ -1,4 +1,5 @@
 import os
+from typing import List
 # import sqlite3 as sqlite
 import pymongo
 from be.model.collection import Collection
@@ -23,8 +24,8 @@ class Book:
     author_intro: str
     book_intro: str
     content: str
-    tags: [str]
-    pictures: [bytes]
+    tags: List[str]
+    pictures: List[bytes]
 
     def __init__(self):
         self.tags = []
@@ -49,7 +50,7 @@ class BookDB:
         # row = cursor.fetchone()
         return self.bookCollection.count_documents({})
 
-    def get_book_info(self, start, size) -> [Book]:
+    def get_book_info(self, start, size) -> List[Book]:
         books = []
         # conn = sqlite.connect(self.book_db)
         # cursor = conn.execute(

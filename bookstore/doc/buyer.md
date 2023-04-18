@@ -14,7 +14,7 @@ token | string | 登录产生的会话标识 | N
 ##### Body:
 ```json
 {
-  "user_id": "buyer_id",
+  "user_id": "user_id",
   "store_id": "store_id",
   "books": [
     {
@@ -103,7 +103,9 @@ Status Code:
 码 | 描述
 --- | ---
 200 | 付款成功
-5XX | 账户余额不足
+519 | 账户余额不足
+520 | 该订单已付款
+521 | 该订单已取消
 5XX | 无效参数
 401 | 授权失败 
 
@@ -142,3 +144,62 @@ Status Code:
 200 | 充值成功
 401 | 授权失败
 5XX | 无效参数
+
+## 查询订单
+
+#### URL：
+POST http://[address]/buyer/query_orders
+
+#### Request
+
+##### Header:
+
+key | 类型 | 描述 | 是否可为空
+---|---|---|---
+token | string | 登录产生的会话标识 | N
+
+##### Body:
+```json
+{
+  "user_id": "buyer_id",
+  "password": "password"
+}
+```
+
+##### 属性说明：
+
+变量名 | 类型 | 描述 | 是否可为空
+---|---|---|---
+user_id | string | 买家用户ID | N
+password | string | 买家用户密码 | N 
+
+
+#### Response
+
+Status Code:
+
+码 | 描述
+--- | ---
+200 | 查询成功
+401 | 授权失败 
+5XX | 无效参数
+
+##### Body:
+```json
+{"order_id": 
+  [
+    {"book_id": "1000067", "count": 37, "price": 3879}, 
+    {"book_id": "1000134", "count": 55, "price": 3000}, 
+    ...
+  ]
+}
+```
+
+##### 属性说明：
+
+变量名 | 类型 | 描述 | 是否可为空
+---|---|---|---
+order_id | string | 订单号，只有返回200时才有效 | N
+book_id | string | 书籍ID | N
+count | integer | 购买数量 | N
+price | integer | 书籍单价 | N
