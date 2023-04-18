@@ -161,8 +161,7 @@ token | string | 登录产生的会话标识 | N
 ##### Body:
 ```json
 {
-  "user_id": "buyer_id",
-  "password": "password"
+  "user_id": "buyer_id"
 }
 ```
 
@@ -171,8 +170,6 @@ token | string | 登录产生的会话标识 | N
 变量名 | 类型 | 描述 | 是否可为空
 ---|---|---|---
 user_id | string | 买家用户ID | N
-password | string | 买家用户密码 | N 
-
 
 #### Response
 

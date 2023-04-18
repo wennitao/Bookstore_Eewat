@@ -16,9 +16,10 @@ def new_order():
         book_id = book.get("id")
         count = book.get("count")
         id_and_count.append((book_id, count))
+    token: str = request.headers.get ("token")
 
     b = Buyer()
-    code, message, order_id = b.new_order(user_id, store_id, id_and_count)
+    code, message, order_id = b.new_order(user_id, token, store_id, id_and_count)
     return jsonify({"message": message, "order_id": order_id}), code
 
 
@@ -44,7 +45,7 @@ def add_funds():
 @bp_buyer.route("/query_orders", methods=["POST"])
 def query_orders():
     user_id = request.json.get("user_id")
-    password = request.json.get("password")
+    token = request.headers.get("token")
     b = Buyer()
-    code, message, orders = b.query_orders(user_id, password)
+    code, message, orders = b.query_orders(user_id, token)
     return jsonify({"message": message, "orders": orders}), code

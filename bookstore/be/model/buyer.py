@@ -25,13 +25,16 @@ class Buyer():
         self.neworderdetailCollection = Collection("new_order_detail").collection
         self.neworderdetailCollection.create_index([("order_id", 1), ("book_id", 1)], unique = True)
 
-    def new_order(self, user_id: str, store_id: str, id_and_count: List[Tuple[str, int]]) -> Tuple[int, str, str]:
+    def new_order(self, user_id: str, token: str, store_id: str, id_and_count: List[Tuple[str, int]]) -> Tuple[int, str, str]:
         order_id = ""
         try:
             if not user_id_exist(user_id):
                 return error.error_non_exist_user_id(user_id) + (order_id, )
             if not store_id_exist(store_id):
                 return error.error_non_exist_store_id(store_id) + (order_id, )
+            code, msg = User().check_token (user_id, token)
+            if code != 200:
+                return code, msg
             uid = "{}_{}_{}".format(user_id, store_id, str(uuid.uuid1()))
             order_id = uid
             
@@ -214,9 +217,9 @@ class Buyer():
 
         return 200, "ok"
     
-    def query_orders (self, user_id, password) -> Tuple [int, str, dict]:
+    def query_orders (self, user_id, token) -> Tuple [int, str, dict]:
         try:
-            code, msg = User().check_password (user_id, password)
+            code, msg = User().check_token (user_id, token)
             if code != 200:
                 return code, msg, ""
 
