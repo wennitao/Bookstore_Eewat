@@ -42,7 +42,7 @@ class Buyer:
         r = requests.post(url, headers=headers, json=json)
         return r.status_code
     
-    def query_orders (self) -> Tuple [int, dict]:
+    def query_orders (self) -> Tuple [int, list]:
         json = {"user_id": self.user_id}
         url = urljoin(self.url_prefix, "query_orders")
         headers = {"token": self.token}

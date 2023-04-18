@@ -24,8 +24,8 @@ class TestQueryOrders:
         code, orders = self.buyer.query_orders ()
         assert code == 200
         assert len (orders) == 1
-        for order_id in orders:
-            assert len (orders[order_id]) == len (buy_book_id_list)
+        for order in orders:
+            assert len (order['order_books']) == len (buy_book_id_list)
 
     def test_non_exist_user_id(self):
         self.buyer.user_id = self.buyer.user_id + "_x"

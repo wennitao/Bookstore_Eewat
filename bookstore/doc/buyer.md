@@ -182,13 +182,20 @@ Status Code:
 
 ##### Body:
 ```json
-{"order_id": 
-  [
-    {"book_id": "1000067", "count": 37, "price": 3879}, 
-    {"book_id": "1000134", "count": 55, "price": 3000}, 
-    ...
-  ]
-}
+[
+  {"order_id": "order_id", 
+  "store_id": "store_id", 
+  "order_time": "datetime.datetime", 
+  "total_price": 2440630, 
+  "paid": 0, 
+  "cancelled": 0, 
+  "order_books": 
+    [
+      {"book_id": "1000067", "count": 40, "price": 3879}, 
+      {"book_id": "1000134", "count": 5, "price": 3000}
+    ]
+  }
+]
 ```
 
 ##### 属性说明：
@@ -196,6 +203,16 @@ Status Code:
 变量名 | 类型 | 描述 | 是否可为空
 ---|---|---|---
 order_id | string | 订单号，只有返回200时才有效 | N
+store_id | string | 书店ID | N
+order_time | TIME | 下单时间 | N
+total_price | integer | 订单总价 | N
+paid | bool | 是否支付 | N
+cancelled | bool | 是否取消 | N
+order_books | class | 书籍购买列表 | N
+
+books list:
+变量名 | 类型 | 描述 | 是否可为空
+---|---|---|---
 book_id | string | 书籍ID | N
 count | integer | 购买数量 | N
 price | integer | 书籍单价 | N

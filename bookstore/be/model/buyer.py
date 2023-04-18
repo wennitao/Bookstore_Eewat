@@ -14,7 +14,7 @@ import pymongo.errors
 
 class Buyer():
     def __init__(self):
-        # db_conn.DBConn.__init__(self)
+        self.paytimeLimit: int = 900 # 900s
         self.userCollection = Collection("user").collection
         self.userCollection.create_index([("user_id", 1)], unique = True)
         self.storeCollection = Collection("store").collection
@@ -77,17 +77,22 @@ class Buyer():
 
     def payment(self, user_id: str, password: str, order_id: str) -> Tuple[int, str]:
         try:
-            row = list(self.neworderCollection.find({"order_id": order_id}, {"_id": 0, "order_id": 1, "user_id" : 1, "store_id": 1, "total_price": 1, "paid": 1, "cancelled": 1}))
+            row = list(self.neworderCollection.find({"order_id": order_id}, {"_id": 0, "order_id": 1, "user_id" : 1, "store_id": 1, "order_time": 1, "total_price": 1, "paid": 1, "cancelled": 1}))
             if len(row) == 0:
                 return error.error_invalid_order_id(order_id)
             
             order_id = row[0]['order_id']
             buyer_id = row[0]['user_id']
             store_id = row[0]['store_id']
+            orderTime = row[0]['order_time']
             total_price = row[0]['total_price']
 
             if buyer_id != user_id:
                 return error.error_authorization_fail()
+            
+            code, msg = User().check_password (buyer_id, password)
+            if code != 200:
+                return code, msg
             
             paid = row[0]['paid']
             if paid == 1:
@@ -97,9 +102,14 @@ class Buyer():
             if cancelled == 1:
                 return error.error_order_cancelled (order_id)
             
-            code, msg = User().check_password (buyer_id, password)
-            if code != 200:
-                return code, msg
+            curTime = datetime.now()
+            timeInterval = curTime - orderTime
+            if timeInterval.seconds >= self.paytimeLimit:
+                self.neworderCollection.update_one (
+                    {"order_id": order_id}, 
+                    {"$set": {"cancelled": 1}}
+                )
+                return error.error_order_cancelled (order_id)
 
             balance = getBalance (buyer_id)
 
@@ -147,7 +157,7 @@ class Buyer():
                 {"user_id": user_id},
                 {"$inc": {"balance": add_value}}
             )
-            
+
         except pymongo.errors.PyMongoError as e:
             return 528, "{}".format(str(e))
         except BaseException as e:
@@ -155,21 +165,26 @@ class Buyer():
 
         return 200, "ok"
     
-    def query_orders (self, user_id, token) -> Tuple [int, str, dict]:
+    def query_orders (self, user_id, token) -> Tuple [int, str, list]:
         try:
             code, msg = User().check_token (user_id, token)
             if code != 200:
                 return code, msg, ""
 
-            orders = {}
-            order_list = self.neworderCollection.find ({"user_id": user_id}, {"_id": 0, "order_id": 1})
+            orders = []
+            order_list = self.neworderCollection.find ({"user_id": user_id}, {"_id": 0, "order_id": 1, "store_id": 1, "order_time": 1, "total_price": 1, "paid": 1, "cancelled": 1})
             for row in order_list:
-                cur_order = []
+                cur_order = {}
+                cur_order_books = []
                 order_id = row['order_id']
+                for key in row:
+                    cur_order[key] = row[key]
                 cursor = self.neworderdetailCollection.find ({"order_id": order_id}, {"_id": 0, "book_id": 1, "count": 1, "price": 1, "paid": 1, "cancelled": 1})
                 for cur_book_order in cursor:
-                    cur_order.append (cur_book_order)
-                orders[order_id] = cur_order
+                    cur_order_books.append (cur_book_order)
+                cur_order['order_books'] = cur_order_books
+                orders.append (cur_order)
+            print (orders)
         except pymongo.errors.PyMongoError as e:
             return 528, "{}".format(str(e)), ""
         except BaseException as e:
