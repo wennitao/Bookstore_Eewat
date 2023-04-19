@@ -1,5 +1,6 @@
 import pytest
 import uuid
+from be.model.user import getBalance
 from fe.access.new_buyer import register_new_buyer
 
 
@@ -12,11 +13,17 @@ class TestAddFunds:
         yield
 
     def test_ok(self):
+        preBalance = getBalance (self.user_id)
         code = self.buyer.add_funds(1000)
+        postBalance = getBalance (self.user_id)
         assert code == 200
+        assert postBalance - preBalance == 1000
 
+        preBalance = getBalance (self.user_id)
         code = self.buyer.add_funds(-1000)
+        postBalance = getBalance (self.user_id)
         assert code == 200
+        assert postBalance - preBalance == -1000
 
     def test_error_user_id(self):
         self.buyer.user_id = self.buyer.user_id + "_x"

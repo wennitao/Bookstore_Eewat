@@ -38,13 +38,13 @@ def jwt_decode(encoded_token, user_id: str) -> str:
     return decoded
 
 
-class User(Collection):
+class User():
     token_lifetime: int = 3600  # 3600 second
 
     def __init__(self):
         # db_conn.DBConn.__init__(self)
-        Collection.__init__(self, "user")
-        self.collection.create_index("user_id", unique=True)
+        self.userCollection = Collection("user").collection
+        self.userCollection.create_index("user_id", unique=True)
 
     def __check_token(self, user_id, db_token, token) -> bool:
         try:
@@ -71,7 +71,7 @@ class User(Collection):
             # self.conn.commit()
             
             # mongoDB example
-            self.collection.insert_one(
+            self.userCollection.insert_one(
                 {
                     "user_id": user_id,
                     "password": password,
@@ -87,7 +87,7 @@ class User(Collection):
     def check_token(self, user_id: str, token: str) -> Tuple[int, str]:
         # cursor = self.conn.execute("SELECT token from user where user_id=?", (user_id,))
         # row = cursor.fetchone()
-        result = self.collection.find ({'user_id': user_id})
+        result = self.userCollection.find ({'user_id': user_id})
         result_list = list (result)
         if len (result_list) == 0:
             return error.error_authorization_fail()
@@ -99,7 +99,7 @@ class User(Collection):
     def check_password(self, user_id: str, password: str) -> Tuple[int, str]:
         # cursor = self.conn.execute("SELECT password from user where user_id=?", (user_id,))
         # row = cursor.fetchone()
-        result = self.collection.find ({'user_id': user_id})
+        result = self.userCollection.find ({'user_id': user_id})
         result_list = list (result)
         if len (result_list) == 0:
             return error.error_authorization_fail()
@@ -119,7 +119,7 @@ class User(Collection):
             # cursor = self.conn.execute(
             #     "UPDATE user set token= ? , terminal = ? where user_id = ?",
             #     (token, terminal, user_id), )
-            update_result = self.collection.update_one (
+            update_result = self.userCollection.update_one (
                 {"user_id": user_id},
                 {"$set": {"token": token, "terminal": terminal}}
             )
@@ -143,7 +143,7 @@ class User(Collection):
             # cursor = self.conn.execute(
             #     "UPDATE user SET token = ?, terminal = ? WHERE user_id=?",
             #     (dummy_token, terminal, user_id), )
-            update_result = self.collection.update_one (
+            update_result = self.userCollection.update_one (
                 {"user_id": user_id},
                 {"$set": {"token": dummy_token, "terminal": terminal}}
             )
@@ -162,7 +162,7 @@ class User(Collection):
                 return code, message
 
             # cursor = self.conn.execute("DELETE from user where user_id=?", (user_id,))
-            delete_result = self.collection.delete_one({"user_id": user_id})
+            delete_result = self.userCollection.delete_one({"user_id": user_id})
             if delete_result.deleted_count == 0:
                 return error.error_authorization_fail()
         except pymongo.errors.PyMongoError as e:
@@ -182,7 +182,7 @@ class User(Collection):
             # cursor = self.conn.execute(
             #     "UPDATE user set password = ?, token= ? , terminal = ? where user_id = ?",
             #     (new_password, token, terminal, user_id), )
-            update_result = self.collection.update_one (
+            update_result = self.userCollection.update_one (
                 {"user_id": user_id},
                 {"$set": {"password": new_password, "token": token, "terminal": terminal}}
             )
@@ -195,3 +195,8 @@ class User(Collection):
             return 530, "{}".format(str(e))
         return 200, "ok"
 
+def getBalance (user_id: str) -> int:
+    userCollection = Collection("user").collection
+    result = userCollection.find ({'user_id': user_id})
+    result_list = list (result)
+    return result_list[0]['balance']
