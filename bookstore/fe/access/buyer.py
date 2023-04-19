@@ -1,3 +1,4 @@
+from typing import Tuple, List
 import requests
 import simplejson
 from urllib.parse import urljoin
@@ -27,7 +28,7 @@ class Buyer:
         response_json = r.json()
         return r.status_code, response_json.get("order_id")
 
-    def payment(self,  order_id: str):
+    def payment(self,  order_id: str) -> int:
         json = {"user_id": self.user_id, "password": self.password, "order_id": order_id}
         url = urljoin(self.url_prefix, "payment")
         headers = {"token": self.token}
@@ -37,6 +38,20 @@ class Buyer:
     def add_funds(self, add_value: str) -> int:
         json = {"user_id": self.user_id, "password": self.password, "add_value": add_value}
         url = urljoin(self.url_prefix, "add_funds")
+        headers = {"token": self.token}
+        r = requests.post(url, headers=headers, json=json)
+        return r.status_code
+    
+    def query_orders (self) -> Tuple [int, list]:
+        json = {"user_id": self.user_id}
+        url = urljoin(self.url_prefix, "query_orders")
+        headers = {"token": self.token}
+        r = requests.post(url, headers=headers, json=json)
+        return r.status_code, r.json().get("orders")
+    
+    def cancel_order (self, order_id) -> int:
+        json = {"user_id": self.user_id, "order_id": order_id}
+        url = urljoin(self.url_prefix, "cancel_order")
         headers = {"token": self.token}
         r = requests.post(url, headers=headers, json=json)
         return r.status_code

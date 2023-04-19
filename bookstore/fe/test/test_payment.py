@@ -1,9 +1,13 @@
 import pytest
+from typing import List
 
 from fe.access.buyer import Buyer
 from fe.test.gen_book_data import GenBook
 from fe.access.new_buyer import register_new_buyer
 from fe.access.book import Book
+
+from be.model.user import getBalance
+
 import uuid
 
 
@@ -12,7 +16,7 @@ class TestPayment:
     store_id: str
     buyer_id: str
     password:str
-    buy_book_info_list: [Book]
+    buy_book_info_list: List[Book]
     total_price: int
     order_id: str
     buyer: Buyer
@@ -42,10 +46,20 @@ class TestPayment:
         yield
 
     def test_ok(self):
+        preBalance = getBalance (self.buyer_id)
         code = self.buyer.add_funds(self.total_price)
+        postBalance = getBalance (self.buyer_id)
         assert code == 200
+        assert postBalance - preBalance == self.total_price
+
+        preBalance = getBalance (self.buyer_id)
+        preSellerBalance = getBalance (self.seller_id)
         code = self.buyer.payment(self.order_id)
+        postBalance = getBalance (self.buyer_id)
+        postSellerBalance = getBalance (self.seller_id)
         assert code == 200
+        assert preBalance - postBalance == self.total_price
+        assert postSellerBalance - preSellerBalance == self.total_price
 
     def test_authorization_error(self):
         code = self.buyer.add_funds(self.total_price)
@@ -58,7 +72,7 @@ class TestPayment:
         code = self.buyer.add_funds(self.total_price - 1)
         assert code == 200
         code = self.buyer.payment(self.order_id)
-        assert code != 200
+        assert code == 519
 
     def test_repeat_pay(self):
         code = self.buyer.add_funds(self.total_price)
@@ -67,4 +81,13 @@ class TestPayment:
         assert code == 200
 
         code = self.buyer.payment(self.order_id)
-        assert code != 200
+        assert code == 520
+
+    def test_pay_after_cancel (self):
+        code = self.buyer.add_funds(self.total_price)
+        assert code == 200
+        code = self.buyer.cancel_order (self.order_id)
+        assert code == 200
+
+        code = self.buyer.payment(self.order_id)
+        assert code == 521

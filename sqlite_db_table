@@ -18,8 +18,9 @@ store_id TEXT, book_id TEXT, book_info TEXT, stock_level INTEGER,
 PRIMARY KEY(store_id, book_id))
 
 CREATE TABLE IF NOT EXISTS new_order(
-order_id TEXT PRIMARY KEY, user_id TEXT, store_id TEXT)
+order_id TEXT, user_id TEXT, store_id TEXT, order_time TIME, total_price INTEGER, paid BOOLEAN, cancelled BOOLEAN
+PRIMARY KEY(order_id, user_id))
 
 CREATE TABLE IF NOT EXISTS new_order_detail(
-order_id TEXT, book_id TEXT, count INTEGER, price INTEGER, 
+order_id TEXT, book_id TEXT, count INTEGER, price INTEGER
 PRIMARY KEY(order_id, book_id))
