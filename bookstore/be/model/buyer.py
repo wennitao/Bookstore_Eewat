@@ -177,9 +177,22 @@ class Buyer():
                 cur_order = {}
                 cur_order_books = []
                 order_id = row['order_id']
+                order_time = row['order_time']
+                cancelled = row['cancelled']
+
+                curTime = datetime.now()
+                timeInterval = curTime - order_time
+                if timeInterval.seconds >= self.paytimeLimit:
+                    self.neworderCollection.update_one (
+                        {"order_id": order_id}, 
+                        {"$set": {"cancelled": 1}}
+                    )
+                    cancelled = 1
+
                 for key in row:
                     cur_order[key] = row[key]
-                cursor = self.neworderdetailCollection.find ({"order_id": order_id}, {"_id": 0, "book_id": 1, "count": 1, "price": 1, "paid": 1, "cancelled": 1})
+                cur_order['cancelled'] = cancelled
+                cursor = self.neworderdetailCollection.find ({"order_id": order_id}, {"_id": 0, "book_id": 1, "count": 1, "price": 1})
                 for cur_book_order in cursor:
                     cur_order_books.append (cur_book_order)
                 cur_order['order_books'] = cur_order_books
@@ -196,10 +209,20 @@ class Buyer():
             code, msg = User().check_token (user_id, token)
             if code != 200:
                 return code, msg
-            order = list (self.neworderCollection.find ({"order_id": order_id}, {"_id": 0, "user_id": 1, "store_id": 1, "total_price": 1, "paid": 1, "cancelled": 1}))
+            order = list (self.neworderCollection.find ({"order_id": order_id}, {"_id": 0, "user_id": 1, "store_id": 1, "order_time": 1, "total_price": 1, "paid": 1, "cancelled": 1}))
             if len (order) == 0:
                 return error.error_invalid_order_id(order_id)
             order = order[0]
+            order_time = order['order_time']
+            print (order_time)
+            curTime = datetime.now()
+            timeInterval = curTime - order_time
+            if timeInterval.seconds >= self.paytimeLimit:
+                self.neworderCollection.update_one (
+                    {"order_id": order_id}, 
+                    {"$set": {"cancelled": 1}}
+                )
+                order['cancelled'] = 1
             print (order)
             if order['cancelled'] == 1:
                 return error.error_order_cancelled (order_id)
