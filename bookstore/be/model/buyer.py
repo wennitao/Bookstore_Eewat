@@ -64,7 +64,7 @@ class Buyer():
                 result = self.neworderdetailCollection.insert_one({"order_id": order_id, "book_id": book_id, "count": count, "price": price})
 
             curTime = datetime.now()
-            result = self.neworderCollection.insert_one({"order_id": order_id, "store_id": store_id, "user_id": user_id, "order_time": curTime, "total_price": total_price, "paid": 0, "cancelled": 0})
+            result = self.neworderCollection.insert_one({"order_id": order_id, "store_id": store_id, "user_id": user_id, "order_time": curTime, "total_price": total_price, "paid": 0, "cancelled": 0, "delivered": 0})
         
         except pymongo.errors.PyMongoError as e:
             logging.info("528, {}".format(str(e)))
@@ -142,7 +142,6 @@ class Buyer():
             return 528, "{}".format(str(e))
 
         except BaseException as e:
-            print (str (e))
             return 530, "{}".format(str(e))
 
         return 200, "ok"
@@ -197,7 +196,6 @@ class Buyer():
                     cur_order_books.append (cur_book_order)
                 cur_order['order_books'] = cur_order_books
                 orders.append (cur_order)
-            print (orders)
         except pymongo.errors.PyMongoError as e:
             return 528, "{}".format(str(e)), ""
         except BaseException as e:
@@ -214,7 +212,6 @@ class Buyer():
                 return error.error_invalid_order_id(order_id)
             order = order[0]
             order_time = order['order_time']
-            print (order_time)
             curTime = datetime.now()
             timeInterval = curTime - order_time
             if timeInterval.seconds >= self.paytimeLimit:
@@ -223,7 +220,6 @@ class Buyer():
                     {"$set": {"cancelled": 1}}
                 )
                 order['cancelled'] = 1
-            print (order)
             if order['cancelled'] == 1:
                 return error.error_order_cancelled (order_id)
             if order['paid'] == 1:
@@ -247,6 +243,5 @@ class Buyer():
         except pymongo.errors.PyMongoError as e:
             return 528, "{}".format(str(e))
         except BaseException as e:
-            print (str (e))
             return 530, "{}".format(str(e))
         return 200, "ok"

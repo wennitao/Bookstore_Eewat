@@ -12,9 +12,9 @@ error_code = {
     519: "not sufficient funds, order id {}",
     520: "order already paid, order id {}",
     521: "order cancelled, order id {}",
-    522: "",
-    523: "",
-    524: "",
+    522: "order not paid, order id {}",
+    523: "order already delivered, order id {}",
+    524: "order already cancelled, order id {}",
     525: "",
     526: "",
     527: "",
@@ -61,6 +61,15 @@ def error_already_paid(order_id):
 
 def error_order_cancelled (order_id):
     return 521, error_code[521].format(order_id)
+
+def error_order_not_paid (order_id):
+    return 522, error_code[522].format(order_id)
+
+def error_order_already_delivered (order_id):
+    return 523, error_code[523].format(order_id)
+
+def error_order_already_cancelled (order_id):
+    return 524, error_code[524].format(order_id)
 
 def error_authorization_fail():
     return 401, error_code[401]
