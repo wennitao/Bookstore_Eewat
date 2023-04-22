@@ -213,7 +213,7 @@ new_order_detail: {
 
 #### 接口
 
-见 [search.md](bookstore\doc\search.md)
+见 [search.md](bookstore/doc/search.md)
 
 #### 后端逻辑
 
