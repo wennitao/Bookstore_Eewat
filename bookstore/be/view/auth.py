@@ -14,7 +14,7 @@ def login():
     u = user.User()
     code, message, token = u.login(user_id=user_id, password=password, terminal=terminal)
     return jsonify({"message": message, "token": token}), code
-
+    
 
 @bp_auth.route("/logout", methods=["POST"])
 def logout():

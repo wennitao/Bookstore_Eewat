@@ -12,6 +12,7 @@ client.drop_database("bookstore")
 db = client['bookstore']
 books = db['book']
 
+
 for row in rows:
     book = {
         'id': row[0],
