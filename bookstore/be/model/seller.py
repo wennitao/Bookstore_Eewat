@@ -15,6 +15,10 @@ class Seller():
         self.storeCollection.create_index([("store_id", 1), ("book_id", 1)], unique=True)
         self.userStoreCollection = Collection ("user_store").collection
         self.userStoreCollection.create_index ([("user_id", 1), ("store_id", 1)], unique=True)
+        self.neworderCollection = Collection("new_order").collection
+        self.neworderCollection.create_index([("order_id", 1), ("user_id", 1)], unique = True)
+        self.neworderdetailCollection = Collection("new_order_detail").collection
+        self.neworderdetailCollection.create_index([("order_id", 1), ("book_id", 1)], unique = True)
 
     def add_book(self, user_id: str, store_id: str, book_id: str, book_json_str: str, stock_level: int):
         try:
@@ -80,6 +84,40 @@ class Seller():
                     "user_id": user_id
                 }
             )
+        except pymongo.errors.PyMongoError as e:
+            return 528, "{}".format(str(e))
+        except BaseException as e:
+            return 530, "{}".format(str(e))
+        return 200, "ok"
+
+    def deliver_order(self, order_id: str) -> Tuple[int, str]:
+        try:
+            order = list (self.neworderCollection.find ({"order_id": order_id}, {"_id": 0, "user_id": 1, "store_id": 1, "order_time": 1, "total_price": 1, "paid": 1, "cancelled": 1, "delivered": 1}))
+            if len(order) == 0:
+                return error.error_invalid_order_id(order_id)
+            if order[0]['paid'] == 0:
+                return error.error_order_not_paid(order_id)
+            if order[0]['cancelled'] == 1:
+                return error.error_order_already_cancelled(order_id)
+            if order[0]['delivered'] == 1:
+                return error.error_order_already_delivered(order_id)
+            store_id = order[0]['store_id']
+            if not store_id_exist(store_id):
+                return error.error_non_exist_store_id(store_id)
+            detailed_order = list(self.neworderdetailCollection.find({"order_id": order_id}, {"_id": 0, "book_id": 1, "count": 1}))
+            if len(detailed_order) == 0:
+                return error.error_invalid_order_id(order_id)
+            for each in detailed_order:
+                book_id = each['book_id']
+                count = each['count']
+                if not book_id_exist(store_id, book_id):
+                    return error.error_non_exist_book_id(book_id)
+                result = self.storeCollection.update_one({"store_id": store_id, "book_id": book_id}, {"$inc": {"stock_level": -count}})
+                if result.matched_count == 0:
+                    return error.error_stock_level_low(book_id)
+            result = self.neworderCollection.update_one({"order_id": order_id}, {"$set": {"delivered": 1}})
+            if result.matched_count == 0:
+                return error.error_invalid_order_id(order_id)
         except pymongo.errors.PyMongoError as e:
             return 528, "{}".format(str(e))
         except BaseException as e:
