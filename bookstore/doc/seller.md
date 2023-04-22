@@ -36,10 +36,10 @@ Status Code:
 200 | 创建商铺成功
 5XX | 商铺ID已存在
 
-
 ## 商家添加书籍信息
 
 #### URL：
+
 POST http://[address]/seller/add_book
 
 #### Request
