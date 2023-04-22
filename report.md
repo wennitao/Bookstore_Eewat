@@ -7,7 +7,34 @@
 
 ## 文档数据库设计
 
+```
+book (
+id TEXT PRIMARY KEY, title TEXT, author TEXT, 
+publisher TEXT, original_title TEXT, 
+translator TEXT, pub_year TEXT, pages INTEGER, 
+price INTEGER, currency_unit TEXT, binding TEXT, 
+isbn TEXT, author_intro TEXT, book_intro text, 
+content TEXT, tags TEXT, picture BLOB)
 
+user (
+user_id TEXT PRIMARY KEY, password TEXT NOT NULL, 
+balance INTEGER NOT NULL, token TEXT, terminal TEXT)
+
+user_store (
+user_id TEXT, store_id, PRIMARY KEY(user_id, store_id))
+
+store (
+store_id TEXT, book_id TEXT, book_info TEXT, stock_level INTEGER,
+PRIMARY KEY(store_id, book_id))
+
+new_order (
+order_id TEXT, user_id TEXT, store_id TEXT, order_time TIME, total_price INTEGER, paid BOOLEAN, cancelled BOOLEAN
+PRIMARY KEY(order_id, user_id))
+
+new_order_detail (
+order_id TEXT, book_id TEXT, count INTEGER, price INTEGER
+PRIMARY KEY(order_id, book_id))
+```
 
 ## 内部实现介绍
 
@@ -190,4 +217,4 @@
 ## 测试结果和覆盖率
 
 ## 亮点
-1. 完全使用git管理整个仓库
+1. 完全使用git管理整个仓库，各个功能在不同的分支上开发，最后合并到master分支。
