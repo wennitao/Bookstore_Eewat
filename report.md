@@ -15,11 +15,49 @@
 
 #### 接口
 
+见`doc/auth.md`.
+
 #### 后端逻辑
+
+`__init__`: 初始化数据库表
+
+`check_token`: 检查`token`的时效性，是否小于`token_lifetime`.
+
+`register`: 注册用户。
+
+`check_password`: 检查密码是否正确。
+
+`login`: 登录。
+
+`logout`: 登出。
+
+`unregister`: 注销。
+
+`change_password`: 修改密码。
 
 #### 数据库操作
 
+`__init__`: 初始化数据库表
+
+`register`: 在`user`表中插入新用户。
+
+`check_password`: 在`user`表中查询`user_id`用户的密码。
+
+`login`: 若密码验证成功， 在`user`表中更新`token`和`terminal`。
+
+`logout`: 若为登录状态，在`user`表中更新`token`和`terminal`。
+
+`unregister`: 在`user`表中删除`user_id`的用户。
+
+`change_password`: 在`user`表中更新`user_id`用户的密码`password`。
+
 #### 测试用例
+
+`test_login.py`: 验证登录登出成功，和错误账号、密码的登出。
+
+`test_password.py`: 验证修改密码后的登录，错误账号、密码。
+
+`test_register.py`: 验证注册注销成功，错误账号密码，注册已注册账号。
 
 ### 买家用户
 
@@ -70,6 +108,8 @@
 #### 数据库操作
 
 #### 测试用例
+
+## 测试结果和覆盖率
 
 ## 亮点
 1. 完全使用git管理整个仓库
