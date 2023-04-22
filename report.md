@@ -1,39 +1,72 @@
 ## 简介
+
 姓名 | 学号 | 分工
 --- | --- | ---
 倪文韬 |  520030910139 | 60%里user和seller的接口实现，40%里订单状态、查询、取消订单的实现
 叶瑶琦 | 520030910144 | 60%里buyer接口的实现，40%里发货到收货的实现
-仇天元 |  | 
+仇天元 | 520030910137 |40% 里的搜索图书
 
 ## 文档数据库设计
 
+* 表示索引，其中 book.content 为全文索引
+
 ```
-book (
-id TEXT PRIMARY KEY, title TEXT, author TEXT, 
-publisher TEXT, original_title TEXT, 
-translator TEXT, pub_year TEXT, pages INTEGER, 
-price INTEGER, currency_unit TEXT, binding TEXT, 
-isbn TEXT, author_intro TEXT, book_intro text, 
-content TEXT, tags TEXT, picture BLOB)
+book: {
+    *id: String,
+    *title: String,
+    *author: String,
+    *publisher: String,
+    *original_title: String,
+    *translator: String,
+    pub_year: String,
+    pages: Number,
+    price: Number,
+    currency_unit: String,
+    binding: String,
+    isbn: String,
+    author_intro: String,
+    book_intro: String,
+    *content: String,
+    *tags: String,
+    picture: BinData
+}
 
-user (
-user_id TEXT PRIMARY KEY, password TEXT NOT NULL, 
-balance INTEGER NOT NULL, token TEXT, terminal TEXT)
+user: {
+    *user_id: String,
+    password: String,
+    balance: Number,
+    token: String,
+    terminal: String
+}
 
-user_store (
-user_id TEXT, store_id, PRIMARY KEY(user_id, store_id))
+user_store: {
+    *user_id: String,
+    *store_id: String
+}
 
-store (
-store_id TEXT, book_id TEXT, book_info TEXT, stock_level INTEGER,
-PRIMARY KEY(store_id, book_id))
+store: {
+    *store_id: String,
+    *book_id: String,
+    book_info: String,
+    stock_level: Number
+}
 
-new_order (
-order_id TEXT, user_id TEXT, store_id TEXT, order_time TIME, total_price INTEGER, paid BOOLEAN, cancelled BOOLEAN
-PRIMARY KEY(order_id, user_id))
+new_order: {
+    *order_id: String,
+    *user_id: String,
+    store_id: String,
+    order_time: Date,
+    total_price: Number,
+    paid: Boolean,
+    cancelled:Boolean
+}
 
-new_order_detail (
-order_id TEXT, book_id TEXT, count INTEGER, price INTEGER
-PRIMARY KEY(order_id, book_id))
+new_order_detail: {
+   *order_id:String, 
+   *book_id:String, 
+   count:Number, 
+   price:Number
+}
 ```
 
 ## 内部实现介绍
@@ -180,11 +213,28 @@ PRIMARY KEY(order_id, book_id))
 
 #### 接口
 
+见 [search.md](bookstore\doc\search.md)
+
 #### 后端逻辑
+
+后端接受两种图书信息访问模式，其一是直接使用 `book_id` 或者 `isbn` 进行访问，返回完整数据。或者使用搜索关键词 `term` 进行模糊查询。进行模糊查询时可以附加 `store_id` 限定店铺，否则在全站搜索。
 
 #### 数据库操作
 
+- 直接访问
+  - 使用 `book_id` 或 `isbn` 作为唯一搜索限制进行搜索，返回完整数据
+
+- 模糊搜索
+  - 全站搜索：使用 `term` 在 `title`, `author`, `publisher`, `original_title`, `translator`, `tags`, `content` 任意部分进行字符串部分匹配，**不区分大小写**
+  - 店铺搜索：先将 `book` 和 `store` 数据表以 `book_id` 进行连接，而后再指定店铺下同上搜索
+  - 分页：使用 `skip` 和 `limit` 功能实现，一页结果数由用户决定，默认为 30
+  - 返回结果：`id`, `title`, `author`, `publisher`, `original_title`, `translator`, `pub_year`, `price`, `binding`, `tags`, `picture`（参考主流网购网站在搜索结果页面需要显示的信息）
+
 #### 测试用例
+
+`test_book_info.py`：测试以两种方式直接访问指定图书
+
+`test_fuzzy_search.py`：测试使用不同关键词（书名、标签、出版社等）进行模糊查询，匹配书籍的不同信息（简介等），并测试分页功能
 
 ### 订单状态、查询取消订单
 
@@ -216,5 +266,51 @@ PRIMARY KEY(order_id, book_id))
 
 ## 测试结果和覆盖率
 
+| Name                             | Stmts    | Miss    | Cover   |
+| -------------------------------- | -------- | ------- | ------- |
+| bookstore/be/__init__.py         | 0        | 0       | 100%    |
+| bookstore/be/model/__init__.py   | 0        | 0       | 100%    |
+| bookstore/be/model/buyer.py      | 182      | 33      | 82%     |
+| bookstore/be/model/collection.py | 8        | 1       | 88%     |
+| bookstore/be/model/database.py   | 35       | 1       | 97%     |
+| bookstore/be/model/error.py      | 27       | 2       | 93%     |
+| bookstore/be/model/seller.py     | 52       | 13      | 75%     |
+| bookstore/be/model/user.py       | 120      | 23      | 81%     |
+| bookstore/be/serve.py            | 35       | 6       | 83%     |
+| bookstore/be/view/__init__.py    | 0        | 0       | 100%    |
+| bookstore/be/view/auth.py        | 42       | 0       | 100%    |
+| bookstore/be/view/buyer.py       | 50       | 0       | 100%    |
+| bookstore/be/view/seller.py      | 31       | 0       | 100%    |
+| __init__.py                      | 0        | 0       | 100%    |
+| access/__init__.py               | 0        | 0       | 100%    |
+| access/auth.py                   | 32       | 0       | 100%    |
+| access/book.py                   | 64       | 0       | 100%    |
+| access/buyer.py                  | 49       | 0       | 100%    |
+| access/new_buyer.py              | 8        | 0       | 100%    |
+| access/new_seller.py             | 8        | 0       | 100%    |
+| access/seller.py                 | 31       | 0       | 100%    |
+| bench/__init__.py                | 0        | 0       | 100%    |
+| bench/run.py                     | 13       | 0       | 100%    |
+| bench/session.py                 | 47       | 18      | 62%     |
+| bench/workload.py                | 125      | 23      | 82%     |
+| conf.py                          | 11       | 0       | 100%    |
+| conftest.py                      | 17       | 4       | 76%     |
+| test/gen_book_data.py            | 48       | 1       | 98%     |
+| test/test_add_book.py            | 36       | 0       | 100%    |
+| test/test_add_funds.py           | 30       | 0       | 100%    |
+| test/test_add_stock_level.py     | 39       | 0       | 100%    |
+| test/test_bench.py               | 6        | 2       | 67%     |
+| test/test_cancel_order.py        | 78       | 2       | 97%     |
+| test/test_create_store.py        | 20       | 0       | 100%    |
+| test/test_login.py               | 28       | 0       | 100%    |
+| test/test_new_order.py           | 40       | 0       | 100%    |
+| test/test_password.py            | 33       | 0       | 100%    |
+| test/test_payment.py             | 78       | 1       | 99%     |
+| test/test_query_orders.py        | 28       | 0       | 100%    |
+| test/test_register.py            | 31       | 0       | 100%    |
+| **TOTAL**                        | **1482** | **130** | **91%** |
+
 ## 亮点
+
 1. 完全使用git管理整个仓库，各个功能在不同的分支上开发，最后合并到master分支。
+1. 搜索功能支持模糊搜索，并且仅返回搜索结果显示页面必须的内容减少开销
