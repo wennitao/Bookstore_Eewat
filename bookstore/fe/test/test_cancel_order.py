@@ -5,7 +5,9 @@ from fe.test.gen_book_data import GenBook
 from fe.access.new_buyer import register_new_buyer
 from fe.access.book import Book
 
-from be.model.collection import Collection
+# from be.model.collection import Collection
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, session
 from be.model.user import getBalance
 
 import uuid
@@ -64,8 +66,19 @@ class TestCancelOrder:
         curDateTime = datetime.now()
         code, order_id = self.buyer.new_order(self.store_id, buy_book_id_list)
         assert code == 200
-        orderCollection = Collection ("new_order").collection
-        orderCollection.update_one ({"order_id": order_id}, {"$set": {"order_time": curDateTime - timedelta (minutes=15)}})
+        # orderCollection = Collection ("new_order").collection
+        # orderCollection.update_one ({"order_id": order_id}, {"$set": {"order_time": curDateTime - timedelta (minutes=15)}})
+        engine = create_engine("postgresql://postgres:wennitao@127.0.0.1:5432/bookstore",
+            # echo=True,
+            pool_size=8, 
+            pool_recycle=60*30
+        )
+        from be.model.database import New_order
+        DbSession = sessionmaker(bind=engine)
+        session = DbSession()
+        session.query(New_order).filter(New_order.order_id == order_id).update({"order_time": curDateTime - timedelta (minutes=15)})
+        session.commit()
+        session.close()
         code = self.buyer.cancel_order (order_id)
         assert code == 521
 
@@ -85,7 +98,18 @@ class TestCancelOrder:
         curDateTime = datetime.now()
         code, order_id = self.buyer.new_order(self.store_id, buy_book_id_list)
         assert code == 200
-        orderCollection = Collection ("new_order").collection
-        orderCollection.update_one ({"order_id": order_id}, {"$set": {"order_time": curDateTime - timedelta (minutes=15)}})
+        # orderCollection = Collection ("new_order").collection
+        # orderCollection.update_one ({"order_id": order_id}, {"$set": {"order_time": curDateTime - timedelta (minutes=15)}})
+        from be.model.database import New_order
+        engine = create_engine("postgresql://postgres:wennitao@127.0.0.1:5432/bookstore",
+            # echo=True,
+            pool_size=8, 
+            pool_recycle=60*30
+        )
+        DbSession = sessionmaker(bind=engine)
+        session = DbSession()
+        session.query(New_order).filter(New_order.order_id == order_id).update({"order_time": curDateTime - timedelta (minutes=15)})
+        session.commit()
+        session.close()
         code = self.buyer.payment (order_id)
         assert code == 521

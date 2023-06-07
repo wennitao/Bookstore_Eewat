@@ -12,7 +12,7 @@ from be.model.database import getDatabaseSession, getDatabaseBase
 
 from sqlalchemy import Column, String, create_engine, Integer, Text, Date
 import time
-from sqlalchemy.orm import declarative_base
+# from sqlalchemy.orm import declarative_base
 from sqlalchemy.exc import SQLAlchemyError
 
 # Base = getDatabaseBase()
@@ -50,8 +50,8 @@ class User(Base):
     print ("init user")
     __tablename__ = "user"
 
-    user_id = Column(String(50), primary_key=True, unique=True, nullable=False)
-    password = Column(String(50), nullable=False)
+    user_id = Column(Text, primary_key=True, unique=True, nullable=False)
+    password = Column(Text, nullable=False)
     balance = Column (Integer, nullable=False)
     token = Column (Text)
     terminal = Column (Text)
@@ -105,6 +105,7 @@ class User(Base):
 
         except SQLAlchemyError as e:
             print (str (e))
+            session.rollback()
             return error.error_exist_user_id(user_id)
         except BaseException as e:
             print (str (e))
@@ -159,6 +160,7 @@ class User(Base):
             # if update_result.matched_count == 0:
             #     return error.error_authorization_fail() + ("", )
         except SQLAlchemyError as e:
+            session.rollback()
             return 528, "{}".format(str(e)), ""
         except BaseException as e:
             return 530, "{}".format(str(e)), ""
@@ -186,6 +188,7 @@ class User(Base):
             session.query (User).filter (User.user_id == user_id).update ({"token": dummy_token, "terminal": terminal})
             session.commit()
         except SQLAlchemyError as e:
+            session.rollback()
             return 528, "{}".format(str(e))
         except BaseException as e:
             return 530, "{}".format(str(e))
@@ -205,6 +208,7 @@ class User(Base):
             session.query (User).filter (User.user_id == user_id).delete()
             session.commit()
         except SQLAlchemyError as e:
+            session.rollback()
             return 528, "{}".format(str(e))
         except BaseException as e:
             print (str (e))
@@ -233,6 +237,7 @@ class User(Base):
             session.commit()
             
         except SQLAlchemyError as e:
+            session.rollback()
             return 528, "{}".format(str(e))
         except BaseException as e:
             return 530, "{}".format(str(e))
