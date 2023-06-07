@@ -3,12 +3,12 @@ import os
 from flask import Flask
 from flask import Blueprint
 from flask import request
+from be.model.database import init_database
 from be.view import auth
 from be.view import seller
 from be.view import buyer
 from be.view import search
 # from be.model.store import init_database
-from be.model.database import init_database
 
 bp_shutdown = Blueprint("shutdown", __name__)
 

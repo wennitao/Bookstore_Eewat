@@ -3,12 +3,19 @@ import time
 import logging
 from typing import Tuple
 # import sqlite3 as sqlite
-import pymongo
-import pymongo.errors
+# import pymongo
+# import pymongo.errors
 from be.model import error
 # from be.model import db_conn
-# from be.model import database
-from be.model.collection import Collection
+from be.model.database import getDatabaseSession, getDatabaseBase
+# from be.model.collection import Collection
+
+from sqlalchemy import Column, String, create_engine, Integer, Text, Date
+import time
+from sqlalchemy.orm import declarative_base
+from sqlalchemy.exc import SQLAlchemyError
+
+# Base = getDatabaseBase()
 
 # encode a json string like:
 #   {
@@ -37,14 +44,24 @@ def jwt_decode(encoded_token, user_id: str) -> str:
     decoded = jwt.decode(encoded_token, key=user_id, algorithms="HS256")
     return decoded
 
+Base = getDatabaseBase()
 
-class User():
+class User(Base):
+    print ("init user")
+    __tablename__ = "user"
+
+    user_id = Column(String(50), primary_key=True, unique=True, nullable=False)
+    password = Column(String(50), nullable=False)
+    balance = Column (Integer, nullable=False)
+    token = Column (Text)
+    terminal = Column (Text)
+
     token_lifetime: int = 3600  # 3600 second
 
-    def __init__(self):
-        # db_conn.DBConn.__init__(self)
-        self.userCollection = Collection("user").collection
-        self.userCollection.create_index("user_id", unique=True)
+    # def __init__(self):
+    #     # db_conn.DBConn.__init__(self)
+    #     self.userCollection = Collection("user").collection
+    #     self.userCollection.create_index("user_id", unique=True)
 
     def __check_token(self, user_id, db_token, token) -> bool:
         try:
@@ -71,27 +88,39 @@ class User():
             # self.conn.commit()
             
             # mongoDB example
-            self.userCollection.insert_one(
-                {
-                    "user_id": user_id,
-                    "password": password,
-                    "balance": 0,
-                    "token": token,
-                    "terminal": terminal
-                }
-            )
-        except pymongo.errors.DuplicateKeyError as e:
+            # self.userCollection.insert_one(
+            #     {
+            #         "user_id": user_id,
+            #         "password": password,
+            #         "balance": 0,
+            #         "token": token,
+            #         "terminal": terminal
+            #     }
+            # )
+            session = getDatabaseSession()
+            new_user = User (user_id = user_id, password = password, balance = 0, token = token, terminal = terminal)
+            print (new_user)
+            session.add (new_user)
+            session.commit()
+
+        except SQLAlchemyError as e:
+            print (str (e))
             return error.error_exist_user_id(user_id)
+        except BaseException as e:
+            print (str (e))
+            return 530, "{}".format(str(e))
         return 200, "ok"
 
     def check_token(self, user_id: str, token: str) -> Tuple[int, str]:
         # cursor = self.conn.execute("SELECT token from user where user_id=?", (user_id,))
         # row = cursor.fetchone()
-        result = self.userCollection.find ({'user_id': user_id})
-        result_list = list (result)
-        if len (result_list) == 0:
+        # result = self.userCollection.find ({'user_id': user_id})
+        # result_list = list (result)
+        session = getDatabaseSession()
+        result = session.query (User).filter (User.user_id == user_id).all()
+        if len (result) == 0:
             return error.error_authorization_fail()
-        db_token = result_list[0]['token']
+        db_token = result[0].token
         if not self.__check_token(user_id, db_token, token):
             return error.error_authorization_fail()
         return 200, "ok"
@@ -99,11 +128,12 @@ class User():
     def check_password(self, user_id: str, password: str) -> Tuple[int, str]:
         # cursor = self.conn.execute("SELECT password from user where user_id=?", (user_id,))
         # row = cursor.fetchone()
-        result = self.userCollection.find ({'user_id': user_id})
-        result_list = list (result)
-        if len (result_list) == 0:
+        # result = self.userCollection.find ({'user_id': user_id})
+        session = getDatabaseSession()
+        result = session.query (User).filter (User.user_id == user_id).all()
+        if len (result) == 0:
             return error.error_authorization_fail()
-        if password != result_list[0]['password']:
+        if password != result[0].password:
             return error.error_authorization_fail()
 
         return 200, "ok"
@@ -119,13 +149,16 @@ class User():
             # cursor = self.conn.execute(
             #     "UPDATE user set token= ? , terminal = ? where user_id = ?",
             #     (token, terminal, user_id), )
-            update_result = self.userCollection.update_one (
-                {"user_id": user_id},
-                {"$set": {"token": token, "terminal": terminal}}
-            )
-            if update_result.matched_count == 0:
-                return error.error_authorization_fail() + ("", )
-        except pymongo.errors.PyMongoError as e:
+            # update_result = self.userCollection.update_one (
+            #     {"user_id": user_id},
+            #     {"$set": {"token": token, "terminal": terminal}}
+            # )
+            session = getDatabaseSession()
+            session.query (User).filter (User.user_id == user_id).update ({"token": token, "terminal": terminal})
+            session.commit()
+            # if update_result.matched_count == 0:
+            #     return error.error_authorization_fail() + ("", )
+        except SQLAlchemyError as e:
             return 528, "{}".format(str(e)), ""
         except BaseException as e:
             return 530, "{}".format(str(e)), ""
@@ -143,13 +176,16 @@ class User():
             # cursor = self.conn.execute(
             #     "UPDATE user SET token = ?, terminal = ? WHERE user_id=?",
             #     (dummy_token, terminal, user_id), )
-            update_result = self.userCollection.update_one (
-                {"user_id": user_id},
-                {"$set": {"token": dummy_token, "terminal": terminal}}
-            )
-            if update_result.matched_count == 0:
-                return error.error_authorization_fail()
-        except pymongo.errors.PyMongoError as e:
+            # update_result = self.userCollection.update_one (
+            #     {"user_id": user_id},
+            #     {"$set": {"token": dummy_token, "terminal": terminal}}
+            # )
+            # if update_result.matched_count == 0:
+            #     return error.error_authorization_fail()
+            session = getDatabaseSession()
+            session.query (User).filter (User.user_id == user_id).update ({"token": dummy_token, "terminal": terminal})
+            session.commit()
+        except SQLAlchemyError as e:
             return 528, "{}".format(str(e))
         except BaseException as e:
             return 530, "{}".format(str(e))
@@ -162,12 +198,16 @@ class User():
                 return code, message
 
             # cursor = self.conn.execute("DELETE from user where user_id=?", (user_id,))
-            delete_result = self.userCollection.delete_one({"user_id": user_id})
-            if delete_result.deleted_count == 0:
-                return error.error_authorization_fail()
-        except pymongo.errors.PyMongoError as e:
+            # delete_result = self.userCollection.delete_one({"user_id": user_id})
+            # if delete_result.deleted_count == 0:
+            #     return error.error_authorization_fail()
+            session = getDatabaseSession()
+            session.query (User).filter (User.user_id == user_id).delete()
+            session.commit()
+        except SQLAlchemyError as e:
             return 528, "{}".format(str(e))
         except BaseException as e:
+            print (str (e))
             return 530, "{}".format(str(e))
         return 200, "ok"
 
@@ -182,21 +222,27 @@ class User():
             # cursor = self.conn.execute(
             #     "UPDATE user set password = ?, token= ? , terminal = ? where user_id = ?",
             #     (new_password, token, terminal, user_id), )
-            update_result = self.userCollection.update_one (
-                {"user_id": user_id},
-                {"$set": {"password": new_password, "token": token, "terminal": terminal}}
-            )
-            if update_result.matched_count == 0:
-                return error.error_authorization_fail()
+            # update_result = self.userCollection.update_one (
+            #     {"user_id": user_id},
+            #     {"$set": {"password": new_password, "token": token, "terminal": terminal}}
+            # )
+            # if update_result.matched_count == 0:
+            #     return error.error_authorization_fail()
+            session = getDatabaseSession()
+            session.query (User).filter (User.user_id == user_id).update ({"password": new_password, "token": token, "terminal": terminal})
+            session.commit()
             
-        except pymongo.errors.PyMongoError as e:
+        except SQLAlchemyError as e:
             return 528, "{}".format(str(e))
         except BaseException as e:
             return 530, "{}".format(str(e))
         return 200, "ok"
 
 def getBalance (user_id: str) -> int:
-    userCollection = Collection("user").collection
-    result = userCollection.find ({'user_id': user_id})
-    result_list = list (result)
-    return result_list[0]['balance']
+    # userCollection = Collection("user").collection
+    # result = userCollection.find ({'user_id': user_id})
+    # result_list = list (result)
+    # return result_list[0]['balance']
+    session = getDatabaseSession()
+    result = session.query (User).filter (User.user_id == user_id).all()
+    return result[0].balance
