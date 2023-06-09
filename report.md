@@ -1,72 +1,42 @@
-## 简介
+## 关系数据库设计
 
-姓名 | 学号 | 分工
---- | --- | ---
-倪文韬 |  520030910139 | 60%里user和seller的接口实现，40%里订单状态、查询、取消订单的实现
-叶瑶琦 | 520030910144 | 60%里buyer接口的实现，40%里发货到收货的实现
-仇天元 | 520030910137 |40% 里的搜索图书
+### 概念设计
 
-## 文档数据库设计
+![](概念设计.png)
 
-* 表示索引，其中 book.content 为全文索引
+### ER图
 
-```
-book: {
-    *id: String,
-    *title: String,
-    *author: String,
-    *publisher: String,
-    *original_title: String,
-    *translator: String,
-    pub_year: String,
-    pages: Number,
-    price: Number,
-    currency_unit: String,
-    binding: String,
-    isbn: String,
-    author_intro: String,
-    book_intro: String,
-    *content: String,
-    *tags: String,
-    picture: BinData
-}
+![](ER.png)
 
-user: {
-    *user_id: String,
-    password: String,
-    balance: Number,
-    token: String,
-    terminal: String
-}
+### 数据库表
 
-user_store: {
-    *user_id: String,
-    *store_id: String
-}
+```SQL
+CREATE TABLE book (
+id TEXT PRIMARY KEY, title TEXT, author TEXT, 
+publisher TEXT, original_title TEXT, 
+translator TEXT, pub_year TEXT, pages INTEGER, 
+price INTEGER, currency_unit TEXT, binding TEXT, 
+isbn TEXT, author_intro TEXT, book_intro text, 
+content TEXT, tags TEXT, picture BLOB)
 
-store: {
-    *store_id: String,
-    *book_id: String,
-    book_info: String,
-    stock_level: Number
-}
+CREATE TABLE IF NOT EXISTS user (
+user_id TEXT PRIMARY KEY, password TEXT NOT NULL, 
+balance INTEGER NOT NULL, token TEXT, terminal TEXT);
 
-new_order: {
-    *order_id: String,
-    *user_id: String,
-    store_id: String,
-    order_time: Date,
-    total_price: Number,
-    paid: Boolean,
-    cancelled:Boolean
-}
+CREATE TABLE IF NOT EXISTS user_store(
+user_id TEXT, store_id, PRIMARY KEY(user_id, store_id));
 
-new_order_detail: {
-   *order_id:String, 
-   *book_id:String, 
-   count:Number, 
-   price:Number
-}
+CREATE TABLE IF NOT EXISTS store(
+store_id TEXT, book_id TEXT, book_info TEXT, stock_level INTEGER,
+PRIMARY KEY(store_id, book_id))
+
+CREATE TABLE IF NOT EXISTS new_order(
+order_id TEXT, user_id TEXT, store_id TEXT, order_time TIME, total_price INTEGER, paid BOOLEAN, cancelled BOOLEAN, delivered BOOLEAN
+PRIMARY KEY(order_id, user_id))
+
+CREATE TABLE IF NOT EXISTS new_order_detail(
+order_id TEXT, book_id TEXT, count INTEGER, price INTEGER
+PRIMARY KEY(order_id, book_id))
 ```
 
 ## 内部实现介绍
@@ -312,5 +282,6 @@ new_order_detail: {
 
 ## 亮点
 
-1. 完全使用git管理整个仓库，各个功能在不同的分支上开发，最后合并到master分支。
-1. 搜索功能支持模糊搜索，并且仅返回搜索结果显示页面必须的内容减少开销
+1. 完全使用git管理整个仓库。
+2. 搜索功能支持模糊搜索，并且仅返回搜索结果显示页面必须的内容减少开销。
+3. 数据库使用了 ORM 实现，同时使用了索引和事务处理。对于 sql 操作分段 commit，若遇到问题则会 rollback。
