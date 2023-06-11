@@ -236,6 +236,8 @@ PRIMARY KEY(order_id, book_id))
 
 ## 测试结果和覆盖率
 
+![](测试结果.png)
+
 | Name                             | Stmts    | Miss    | Cover   |
 | -------------------------------- | -------- | ------- | ------- |
 | bookstore/be/__init__.py         | 0        | 0       | 100%    |
